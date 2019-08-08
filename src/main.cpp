@@ -40,7 +40,7 @@ int main(int argc, char* argv[])
     }
 
     // get app dir
-	appdir = strdup(argv[0]);
+	appdir = _strdup(argv[0]);
 	p = strrchr(appdir, '/');
 	if (!p) p = strrchr(appdir, '\\');
 	if (p)

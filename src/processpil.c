@@ -7,7 +7,7 @@
 #ifdef WIN32
 #include <windows.h>
 #include <io.h>
-#define snprintf _snprintf
+//#define snprintf _snprintf
 #else
 #include <unistd.h>
 #include <sys/time.h>
@@ -278,7 +278,7 @@ int ShellExec(SHELL_PARAM* param, const char* cmdline)
 	// modify path variable
 	if (param->pchPath) {
 		GetEnvironmentVariable("PATH",prevPath,sizeof(prevPath));
-		snprintf(newPath, sizeof(newPath), "%s;s", param->pchPath, prevPath);
+		_snprintf(newPath, sizeof(newPath), "%s;%s", param->pchPath, prevPath);
 		SetEnvironmentVariable("PATH",newPath);
 	}
 

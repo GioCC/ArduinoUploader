@@ -216,7 +216,7 @@ int CArduinoBuilder::ScanSourceCode(const char* dir)
 		if (!p) continue;
 		bool isSketch = false;
 
-		if (sketchFileName && !stricmp(sketchFileName, fn)) {
+		if (sketchFileName && !_stricmp(sketchFileName, fn)) {
 			// main sketch already processed;
 			continue;
 		}

@@ -171,7 +171,7 @@ namespace ctb {
 	   char* GetSettings() {
 		  const char ac[5] = {'N','O','E','M','S'};
 		  memset(buf,0,sizeof(buf));
-		  snprintf(buf,sizeof(buf)-1,"%i%c%i %i",
+		  _snprintf(buf,sizeof(buf)-1,"%i%c%i %i",
 				 wordlen,
 				 ac[parity],
 				 stopbits,

@@ -25,7 +25,7 @@ static string SearchNewPort()
 		for( int i = 0; i < (int)newports.size(); i++) {
 			// look for port in previous ports list
 			found = false;
-			for (int j = 0; j < ports.size(); j++) {
+			for (unsigned int j = 0; j < ports.size(); j++) {
 				if (newports[i].compare(ports[j]) == 0) {
 					found = true;
 					break;
@@ -92,7 +92,7 @@ int CArduinoBuilder::UploadToArduino(const char* eepfile, const char* serial, in
 			ConsoleOutput("No serial port is accessible.\r\n");
 			break;
 		}
-		if (!strcmp(board->mcu, "atmega32u4") && stricmp(serial, "usbasp") && !baudrate) {
+		if (!strcmp(board->mcu, "atmega32u4") && _stricmp(serial, "usbasp") && !baudrate) {
 			ConsoleOutput("Forcing reset using 1200bps open/close on %s... ", serial);
 			uploadPort = ResetLeonardo(serial);
 			if (!uploadPort.empty()) {
@@ -106,7 +106,7 @@ int CArduinoBuilder::UploadToArduino(const char* eepfile, const char* serial, in
 		p = cmd;
 #ifdef WIN32
 		p += sprintf(p, "\"%savrdude.exe\" -C %savrdude.conf", avrpath, avrpath);
-		if (!stricmp(serial, "usbasp")) {
+		if (!_stricmp(serial, "usbasp")) {
 			p += sprintf(p, " -F -cusbasp -Pusb");
 		} else if (ispBaudrate) {
 			// ArduinoISP
@@ -134,7 +134,7 @@ int CArduinoBuilder::UploadToArduino(const char* eepfile, const char* serial, in
 		if (eepfile) {
 			p += sprintf(p, " -Ueeprom:w:\"%s\":i", eepfile);
 		}
-		if (!stricmp(serial, "usbasp")) {
+		if (!_stricmp(serial, "usbasp")) {
 			//p += sprintf(p, " -U lock:w:0xe8:m");
 		}
 		if (ShellExec(&proc, cmd) != 0) {
