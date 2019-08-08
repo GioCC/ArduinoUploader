@@ -5,6 +5,7 @@
 #include "syspil.h"
 #include "processpil.h"
 #include "sketchbuild.h"
+#include "ArduinoPaths.h"
 
 using namespace std;
 
@@ -114,25 +115,29 @@ std::string CArduinoBuilder::GetCompileOpts()
 		<< " -DF_CPU=" << freq << "000000L"
 		<< " -mmcu=" << board->mcu
 		<< " -DARDUINO_ARCH_AVR " << board->defines
-		<< " -Iarduino/hardware/arduino/cores/arduino -Iarduino/hardware/arduino/variants/" << board->variant;
+//		<< " -Iarduino/hardware/arduino/cores/arduino -Iarduino/hardware/arduino/variants/" << board->variant;
+		<< " -I" << ARD_CORE
+        << " -I" << ARD_VARIANTS << '/' << board->variant;
 	for (int i = 0; i < (int)libs.size(); i++) {
 		if (libs[i].empty())
 			continue;
 
 		dir.str("");
-		dir << "arduino/libraries/" << libs[i];
+//		dir << "arduino/libraries/" << libs[i];
+		dir << ARD_LIBS << '/' << libs[i] << ARD_LIBS_SRC;
 		if (IsDir(dir.str().c_str())) {
 			opts << " -I" << dir.str();
-			dir << "/utility";
+			dir << ARD_LIBS_UTI;
 			if (IsDir(dir.str().c_str())) {
 				opts << " -I" << dir.str();
 			}
 		} else if (buildDir) {
 			dir.str("");
-			dir << buildDir << '/' << libs[i];
+//		    dir << buildDir << '/' << libs[i];
+		    dir << buildDir << '/' << libs[i] << ARD_LIBS_SRC;
 			if (IsDir(dir.str().c_str())) {
 				opts << " -I\"" << dir.str() << '\"';
-				dir << "/utility";
+				dir << ARD_LIBS_UTI;
 				if (IsDir(dir.str().c_str())) {
 					opts << " -I\"" << dir.str() << '\"';
 				}
@@ -279,9 +284,9 @@ int CArduinoBuilder::BuildSketch()
 	sources.clear();
 
 	// scan stock libraries
-	if (ReadDir("arduino/libraries", fn) == 0) do {
+	if (ReadDir(ARD_LIBS, fn) == 0) do {
 		if (fn[0] == '.') continue;
-		_snprintf(buf, sizeof(buf), "arduino/libraries/%s/%s.h", fn, fn);
+		_snprintf(buf, sizeof(buf), "%s/%s/%s.h", ARD_LIBS, fn, fn);
 		if (!IsFileExist(buf)) continue;
 		syslibs.push_back(fn);
 	} while(ReadDir(0, fn) == 0);
@@ -314,7 +319,7 @@ int CArduinoBuilder::BuildSketch()
 
 	// scan core files
 	if (!corebuilt) {
-		if (ReadDir("arduino/hardware/arduino/cores/arduino", fn) != 0) {
+		if (ReadDir(ARD_CORE, fn) != 0) {
 			return ERROR_GENERIC;
 		}
 		do {
@@ -331,7 +336,7 @@ int CArduinoBuilder::BuildSketch()
 	ConsoleOutput("Referenced libraries:");
 	// list referenced libraries
 	for (int i = 0; i < (int)libs.size(); i++) {
-		sprintf(dir, "arduino/libraries/%s", libs[i].c_str());
+		sprintf(dir, "%s/%s", ARD_LIBS, libs[i].c_str());
 		if (!IsDir(dir)) {
 			sprintf(dir, "%s/%s", buildDir, libs[i].c_str());
 			if (!IsDir(dir) != 0) {
@@ -351,7 +356,7 @@ int CArduinoBuilder::BuildSketch()
 		for (int j = 0; j < (int)sources.size(); j++) {
 			if (!_stricmp(GetFileName(sources[j].c_str()).c_str(), srcname.c_str())) {
 				// found reference library, remove it
-				ConsoleOutput("[%s] is local library\r\n", libname);
+				ConsoleOutput("[%s] is a local library\r\n", libname);
 				libs[i] = "";
 				totalsteps--;
 			}
@@ -462,7 +467,7 @@ int CArduinoBuilder::BuildSketch()
 		// compile system libraries
 		for (int i = 0; i < (int)libs.size() && ret != ERROR_BUILD_LIB; i++) {
 			if (libs[i].empty()) continue;
-			sprintf(dir, "arduino/libraries/%s", libs[i].c_str());
+			sprintf(dir, "%s/%s", ARD_LIBS, libs[i].c_str());
 			if (ReadDir(dir, fn) != 0) {
 				sprintf(dir, "%s/%s", buildDir, libs[i].c_str());
 				if (ReadDir(dir, fn) != 0) {
@@ -513,9 +518,9 @@ int CArduinoBuilder::BuildSketch()
 			} while (ReadDir(0, fn) == 0);
 
 			// compile utility
-			sprintf(dir, "arduino/libraries/%s/utility", libs[i].c_str());
+			sprintf(dir, "%s/%s%s", ARD_LIBS, libs[i].c_str(), ARD_LIBS_UTI);
 			if (ReadDir(dir, fn) != 0) {
-				sprintf(dir, "%s/%s/utility", buildDir, libs[i].c_str());
+				sprintf(dir, "%s/%s%s", buildDir, libs[i].c_str(), ARD_LIBS_UTI);
 				if (ReadDir(dir, fn) != 0) {
 					continue;
 				}
@@ -616,7 +621,7 @@ int CArduinoBuilder::BuildSketch()
 			}
 			ConsoleOutput("\r\n");
 			ShowProgress(++progress * 100 / totalsteps);
-			ConsoleOutput("\r\nCompiliation successful completed!");
+			ConsoleOutput("\r\nCompilation successful completed!");
     		ret = SUCCESS;
 		}
     } while(0);
@@ -718,6 +723,6 @@ void CArduinoBuilder::ShowProgress(int percentage)
 {
 	progress = percentage;
 	if (hexfile) {
-		printf("\r\n[Compiliation: %d%%]\r\n", percentage);
+		printf("\r\n[Compilation: %d%%]\r\n", percentage);
 	}
 }

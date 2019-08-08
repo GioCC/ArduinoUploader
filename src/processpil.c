@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "processpil.h"
+#include "ArduinoPaths.h"
 
 #define SF_BUFFER_SIZE 256
 

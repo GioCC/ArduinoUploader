@@ -15,7 +15,7 @@
 #define SOURCE_HEX 1
 #define SOURCE_ERROR -1
 
-#define BUILDER_VERSION "0.9.0"
+#define BUILDER_VERSION "1.0.0"
 
 #define BOARD_FLAG_1200BPS_RESET 1
 

@@ -55,10 +55,8 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <Optimization>Disabled</Optimization>
+      <Optimization>MinSpace</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MinimalRebuild>true</MinimalRebuild>
-      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>
@@ -120,6 +118,7 @@
     <ClCompile Include="src\uploader.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\ArduinoPaths.h" />
     <ClInclude Include="src\processpil.h" />
     <ClInclude Include="src\sketchbuild.h" />
     <ClInclude Include="src\syspil.h" />

@@ -27,7 +27,10 @@ int main(int argc, char* argv[])
 	BOARD_CONFIG* board = boards;
 	CArduinoBuilder builder;
 
-	cout << "Arduino Compiler & Uploader Version " << BUILDER_VERSION << endl << "(C)2013 Developed by Stanley Huang <stanleyhuangyc@gmail.com>" << endl << "Distributed under GPL license" << endl << endl;
+	cout << "Arduino Compiler & Uploader Version " << BUILDER_VERSION << endl 
+         << "(C)2013 Developed by Stanley Huang <stanleyhuangyc@gmail.com>" << endl 
+         << "Modified 2019-08 by Giorgio Croci C. for compatibility with Arduino 1.5+" << endl 
+         << "Distributed under GPL license" << endl << endl;
     if (argc < 2) {
 		int i;
 		cout << "Command line syntax:" << endl << argv[0] << " [sketch/hex file] [board type] [serial port/usbasp] [MCU frequency in MHz]" << endl << endl
@@ -166,7 +169,7 @@ int main(int argc, char* argv[])
 			builder.proc.iRetCode = ret;
 
 			if (builder.hexfile && !IsFileExist(builder.hexfile)) {
-				cout << endl << "Error occurred during compiliation" << endl;
+				cout << endl << "Error occurred during compilation" << endl;
 				if (ret == 0) ret = -1;
 			}
 			cout << endl;
