@@ -16,6 +16,7 @@ extern char* appdir;
 
 bool CArduinoBuilder::ParseSketch(const char* sketch)
 {
+	ConsoleOutput(">>> Scan sketch file for referenced libraries\r\n");
 	// parse and list referenced libraries
 	const char* p = sketch;
 	bool needMod = true;
@@ -36,10 +37,12 @@ bool CArduinoBuilder::ParseSketch(const char* sketch)
 					continue;
 				}
 				bool found = false;
+				ConsoleOutput("Found #include for lib: %s\n\r", buf);
 				// see if the referenced header file is one of stock libraries
 				for (int i = 0; i < (int)syslibs.size(); i++) {
 					if (syslibs[i].compare(buf) == 0) {
 						found = true;
+						ConsoleOutput("It is a system lib\n\r");
 						break;
 					}
 				}
@@ -49,10 +52,12 @@ bool CArduinoBuilder::ParseSketch(const char* sketch)
 				for (int i = 0; i < (int)libs.size(); i++) {
 					if (libs[i].compare(buf) == 0) {
 						found = true;
+						ConsoleOutput("(already referenced)\n\r");
 						break;
 					}
 				}
 				if (!found) {
+					ConsoleOutput("Adding lib to be processed: %s\n\r", buf);
 					libs.push_back(buf);
 				}
 			}
@@ -124,20 +129,20 @@ std::string CArduinoBuilder::GetCompileOpts()
 
 		dir.str("");
 //		dir << "arduino/libraries/" << libs[i];
-		dir << ARD_LIBS << '/' << libs[i] << ARD_LIBS_SRC;
+		dir << ARD_LIBS << '/' << libs[i] << '/' << ARD_LIBS_SRC;
 		if (IsDir(dir.str().c_str())) {
 			opts << " -I" << dir.str();
-			dir << ARD_LIBS_UTI;
+			dir << '/' << ARD_LIBS_UTI;
 			if (IsDir(dir.str().c_str())) {
 				opts << " -I" << dir.str();
 			}
 		} else if (buildDir) {
 			dir.str("");
 //		    dir << buildDir << '/' << libs[i];
-		    dir << buildDir << '/' << libs[i] << ARD_LIBS_SRC;
+		    dir << buildDir << '/' << libs[i] << '/' << ARD_LIBS_SRC;
 			if (IsDir(dir.str().c_str())) {
 				opts << " -I\"" << dir.str() << '\"';
-				dir << ARD_LIBS_UTI;
+				dir << '/' << ARD_LIBS_UTI;
 				if (IsDir(dir.str().c_str())) {
 					opts << " -I\"" << dir.str() << '\"';
 				}
@@ -216,6 +221,7 @@ int CArduinoBuilder::ScanSourceCode(const char* dir)
 		return ERROR_GENERIC;
 	}
 	// scan all source code files in the directory for referenced libraries
+	ConsoleOutput(">>> Scan other user source files for referenced libraries\r\n");
 	do {
 		char *p = strrchr((char*)fn, '.');
 		if (!p) continue;
@@ -253,6 +259,7 @@ int CArduinoBuilder::ScanSourceCode(const char* dir)
 				sprintf(buf, "%s/%s.cpp", workDir, fn);
 				int ret = GenSourceFiles(content, filepath);
 				if (ret == SOURCE_OK) {
+					ConsoleOutput("Found source: %s\n\r", buf);
 					sources.push_back(buf);
 				} else {
 					ret = ERROR_ANALYZE_SKETCH;
@@ -284,12 +291,30 @@ int CArduinoBuilder::BuildSketch()
 	sources.clear();
 
 	// scan stock libraries
+	ConsoleOutput(">>> Building catalog of stock libraries\r\n");
 	if (ReadDir(ARD_LIBS, fn) == 0) do {
 		if (fn[0] == '.') continue;
-		_snprintf(buf, sizeof(buf), "%s/%s/%s.h", ARD_LIBS, fn, fn);
-		if (!IsFileExist(buf)) continue;
+//		_snprintf(buf, sizeof(buf), "%s/%s/%s.h", ARD_LIBS, fn, fn);
+		_snprintf(buf, sizeof(buf), "%s/%s/%s/%s.h", ARD_LIBS, fn, ARD_LIBS_SRC, fn);
+		ConsoleOutput("Found syslib: %s\n\r", buf);
+		if (!IsFileExist(buf)) {
+			_snprintf(buf, sizeof(buf), "%s/%s/%s.h", ARD_LIBS, fn, fn);
+			ConsoleOutput("(try without 'src/':  %s)\n\r", buf);
+			if (!IsFileExist(buf)) continue;
+		}
+		ConsoleOutput("Adding syslib: %s\n\r", fn);
 		syslibs.push_back(fn);
 	} while(ReadDir(0, fn) == 0);
+
+	if (ReadDir(ARD_CORELIBS, fn) == 0) do {
+		if (fn[0] == '.') continue;
+//		_snprintf(buf, sizeof(buf), "%s/%s/%s.h", ARD_CORELIBS, fn, fn);
+		_snprintf(buf, sizeof(buf), "%s/%s/%s/%s.h", ARD_CORELIBS, fn, ARD_LIBS_SRC, fn);
+		ConsoleOutput("Found corelib: %s\n\r", buf);
+		if (!IsFileExist(buf)) continue;
+		ConsoleOutput("Adding corelib: %s\n\r", fn);
+		syslibs.push_back(fn);
+	} while (ReadDir(0, fn) == 0);
 
 	if (hexfile) {
 		// parse main sketch file
@@ -333,14 +358,18 @@ int CArduinoBuilder::BuildSketch()
 	}
 
 
-	ConsoleOutput("Referenced libraries:");
+	ConsoleOutput(">>> Listing libraries referenced by user source:\r\n");
 	// list referenced libraries
 	for (int i = 0; i < (int)libs.size(); i++) {
-		sprintf(dir, "%s/%s", ARD_LIBS, libs[i].c_str());
+		// ConsoleOutput("\n\rCheck ref for lib: %s\n\r", libs[i].c_str());
+		sprintf(dir, "%s/%s", ARD_CORELIBS, libs[i].c_str());
 		if (!IsDir(dir)) {
-			sprintf(dir, "%s/%s", buildDir, libs[i].c_str());
-			if (!IsDir(dir) != 0) {
-				continue;
+			sprintf(dir, "%s/%s", ARD_LIBS, libs[i].c_str());
+			if (!IsDir(dir)) {
+				sprintf(dir, "%s/%s", buildDir, libs[i].c_str());
+				if (!IsDir(dir) != 0) {
+					continue;
+				}
 			}
 		}
 		ConsoleOutput(" [%s]", libs[i].c_str());
@@ -356,7 +385,7 @@ int CArduinoBuilder::BuildSketch()
 		for (int j = 0; j < (int)sources.size(); j++) {
 			if (!_stricmp(GetFileName(sources[j].c_str()).c_str(), srcname.c_str())) {
 				// found reference library, remove it
-				ConsoleOutput("[%s] is a local library\r\n", libname);
+				ConsoleOutput("[%s] is found locally - will not use stock library\r\n", libname);
 				libs[i] = "";
 				totalsteps--;
 			}
@@ -367,6 +396,8 @@ int CArduinoBuilder::BuildSketch()
 		char* extraopts = "";
 		const char* tool;
 
+		ConsoleOutput(">>> Compiling source file\r\n");
+		
 		// compile main cpp file
 		if (!strcmp(board->id, "leonardo")) {
 			extraopts = " -DUSB_VID=0x2341 -DUSB_PID=0x8036";
@@ -412,6 +443,7 @@ int CArduinoBuilder::BuildSketch()
 		}
 		
 		if (!corebuilt) {
+			ConsoleOutput(">>> Compiling core files\r\n");
 			// compile core files
 			for (int i = 0; i < (int)cores.size() && ret != ERROR_BUILD_LIB; i++) {
 				if (!(tool = GetCompiler(cores[i].c_str())))
@@ -460,14 +492,17 @@ int CArduinoBuilder::BuildSketch()
 
 		if (libfile) {
 			cmd.str("");
-			cmd << "avr-ar rcs \"" << libfile;
+			//cmd << "avr-ar rcs \"" << libfile;
+			cmd << "avr-ar rcs \"" << libfile << "\"";
 			remove(libfile);
 			ShellRun(&proc, cmd.str().c_str());
 		}
+		
 		// compile system libraries
 		for (int i = 0; i < (int)libs.size() && ret != ERROR_BUILD_LIB; i++) {
 			if (libs[i].empty()) continue;
-			sprintf(dir, "%s/%s", ARD_LIBS, libs[i].c_str());
+			//sprintf(dir, "%s/%s/%s", ARD_CORELIBS, ARD_LIBS_SRC, libs[i].c_str());
+			sprintf(dir, "%s/%s", ARD_CORELIBS, libs[i].c_str());
 			if (ReadDir(dir, fn) != 0) {
 				sprintf(dir, "%s/%s", buildDir, libs[i].c_str());
 				if (ReadDir(dir, fn) != 0) {
@@ -475,11 +510,11 @@ int CArduinoBuilder::BuildSketch()
 				}
 			}
 
-			ConsoleOutput("\r\nCompiling library [%s]...\r\n", libs[i].c_str());
-			// compile library files
+			ConsoleOutput("\r\nCompiling core library [%s]...\r\n", libs[i].c_str());
+			// compile files in library root dir
 			do {
-				if (!(tool = GetCompiler(fn)))
-					continue;
+				tool = GetCompiler(fn);
+				if (!tool) continue;
 					
 				sprintf(buf, "%s/%s.o", workDir, fn);
 				objs.push_back(buf);	// save object path
@@ -507,9 +542,9 @@ int CArduinoBuilder::BuildSketch()
 				if (libfile) {
 					cmd.str("");
 					cmd << "avr-ar rcs \"" << libfile << "\" \"" << buf << "\"";
-#ifdef _DEBUG
+//#ifdef _DEBUG
 					ConsoleOutput("%s\r\n", cmd.str().c_str());
-#endif
+//#endif
 					if (ShellRun(&proc, cmd.str().c_str()) != 0) {
 						ConsoleOutput("Error generating core file");
 						break;
@@ -517,22 +552,73 @@ int CArduinoBuilder::BuildSketch()
 				}
 			} while (ReadDir(0, fn) == 0);
 
-			// compile utility
-			sprintf(dir, "%s/%s%s", ARD_LIBS, libs[i].c_str(), ARD_LIBS_UTI);
+			// compile files in library root\src dir
+			sprintf(dir, "%s/%s/%s", ARD_CORELIBS, libs[i].c_str(), ARD_LIBS_SRC);
 			if (ReadDir(dir, fn) != 0) {
-				sprintf(dir, "%s/%s%s", buildDir, libs[i].c_str(), ARD_LIBS_UTI);
+				sprintf(dir, "%s/%s/%s", buildDir, libs[i].c_str(), ARD_LIBS_SRC);
 				if (ReadDir(dir, fn) != 0) {
 					continue;
 				}
 			}
 			do {
-				if (!(tool = GetCompiler(fn)))
-					continue;
+				tool = GetCompiler(fn);
+				if (!tool) continue;
+
+				sprintf(buf, "%s/%s.o", workDir, fn);
+				objs.push_back(buf);	// save object path
 
 				cmd.str("");
 				cmd << tool << " -c" << extraopts << GetCompileOpts()
-					<< " \"" << dir << '/' << fn
-					<< "\" -o \"" << workDir << "/" << fn << ".o\"";
+					<< " \"" << dir << "/" << fn
+					<< "\" -o \"" << buf << "\"";
+
+				//#ifdef _DEBUG
+				ConsoleOutput("%s\r\n", cmd.str().c_str());
+				//#endif
+
+				if (ShellRun(&proc, cmd.str().c_str()) != 0) {
+					ConsoleOutput("Error calling compiler");
+					break;
+				}
+
+				if (!IsFileExist(buf)) {
+					ConsoleOutput("Error compiling the library");
+					ret = ERROR_BUILD_LIB;
+					break;
+				}
+
+				if (libfile) {
+					cmd.str("");
+					cmd << "avr-ar rcs \"" << libfile << "\" \"" << buf << "\"";
+					//#ifdef _DEBUG
+					ConsoleOutput("%s\r\n", cmd.str().c_str());
+					//#endif
+					if (ShellRun(&proc, cmd.str().c_str()) != 0) {
+						ConsoleOutput("Error generating core file");
+						break;
+					}
+				}
+			} while (ReadDir(0, fn) == 0);
+
+			// compile files in library root\utility dir
+			sprintf(dir, "%s/%s/%s/%s", ARD_CORELIBS, libs[i].c_str(), ARD_LIBS_SRC, ARD_LIBS_UTI);
+			if (ReadDir(dir, fn) != 0) {
+				sprintf(dir, "%s/%s/%s/%s", buildDir, libs[i].c_str(), ARD_LIBS_SRC, ARD_LIBS_UTI);
+				if (ReadDir(dir, fn) != 0) {
+					continue;
+				}
+			}
+			do {
+				tool = GetCompiler(fn);
+				if (!tool) continue;
+
+				sprintf(buf, "%s/%s.o", workDir, fn);
+				objs.push_back(buf);	// save object path
+
+				cmd.str("");
+				cmd << tool << " -c" << extraopts << GetCompileOpts()
+					<< " \"" << dir << "/" << fn
+					<< "\" -o \"" << buf << "\"";
 
 //#ifdef _DEBUG
 				ConsoleOutput("%s\r\n", cmd.str().c_str());
@@ -543,9 +629,6 @@ int CArduinoBuilder::BuildSketch()
 					break;
 				}
 				
-				sprintf(buf, "%s/%s.o", workDir, fn);
-				objs.push_back(buf);	// save object path
-
 				if (!IsFileExist(buf)) {
 					ConsoleOutput("Error compiling the library utility");
 					ret = ERROR_BUILD_LIB;
@@ -571,7 +654,7 @@ int CArduinoBuilder::BuildSketch()
 
 		// linking built objects
 		if (hexfile) {
-			ConsoleOutput("\r\nLinking all objects...\n");
+			ConsoleOutput("\r\n>>> Linking all objects...\n");
 			cmd.str("");
 			cmd << "avr-gcc -Wl,--gc-sections -mmcu=" << board->mcu << " -lm";
 			for (int i = 0; i < (int)objs.size(); i++) {
@@ -601,13 +684,13 @@ int CArduinoBuilder::BuildSketch()
 			GetBinaryInfo(buf);
 
 			if (target.eepBytes > 0) {
-				ConsoleOutput("\r\nGenerating EEPROM HEX (%s.eep)...", hexfile);
+				ConsoleOutput("\r\n>>> Generating EEPROM HEX (%s.eep)...", hexfile);
 				cmd.str("");
 				cmd << "avr-objcopy --no-change-warnings -j .eeprom --change-section-lma .eeprom=0 -O ihex \"" << buf << "\" \"" << hexfile << ".eep\"";
 				ShellRun(&proc, cmd.str().c_str());
 			}
 
-			ConsoleOutput("\r\nGenerating program HEX (%s)... ", hexfile);
+			ConsoleOutput("\r\n>>> Generating program HEX (%s)... ", hexfile);
 			cmd.str("");
 			cmd << "avr-objcopy -O ihex -R .eeprom \"" << buf << "\" \"" << hexfile << '\"';
 			ShellRun(&proc, cmd.str().c_str());
